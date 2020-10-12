@@ -1,5 +1,5 @@
 Clone from https://github.com/gameofyou/pgpemu
-and add display for key events
+Add simple display for key events on TFT
 - Connecting PGP with mobile phone
 - Standby 
 - Device connected
