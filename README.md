@@ -7,7 +7,7 @@ if needed.
 
 ```shell
 cd externals
-git submodule add https://github.com/gameofyou/ESP32_TFT_library.git externals/ESP32_TFT_library
+git submodule add https://github.com/gameofyou/ESP32_TFT_library.git ESP32_TFT_library
 ```
 
 For those new to the esp-idf the following commands are useful
