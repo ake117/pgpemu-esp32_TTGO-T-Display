@@ -4,3 +4,5 @@ Add simple display for key events on TFT
 - Standby 
 - Device connected
 - Catching pokemon
+
+You need to change MAC Address, PGP Key and BLOB in main/secrets.c
