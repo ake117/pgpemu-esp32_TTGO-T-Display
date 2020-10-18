@@ -1,4 +1,6 @@
+#include <stdio.h>
 #include <string.h>
+#include <stdlib.h>
 #include <cstring>
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
@@ -8,6 +10,7 @@
 #include "esp32/aes.h"
 #include "esp_bt_defs.h"
 #include "esp_gatt_defs.h"
+#include "driver/gpio.h"
 
 #define EX_UART_NUM UART_NUM_0
 
@@ -27,6 +30,9 @@
 #include "secrets.h"
 #include "esp_gatt_common_api.h"
 
+//read volt
+#include <driver/adc.h>
+
 #include "pgp_display.h"
 
 #define GATTS_TABLE_TAG "PGPEMU"
@@ -40,6 +46,10 @@
 /* #define BATTERY_INST_ID             1 */
 /* #define LED_BUTTON_INST_ID          2 */
 
+#define GPIO_INPUT_IO_0     GPIO_NUM_0
+#define GPIO_INPUT_IO_1     GPIO_NUM_35
+#define GPIO_INPUT_PIN_SEL  ((1ULL<<GPIO_INPUT_IO_0) | (1ULL<<GPIO_INPUT_IO_1))
+#define ESP_INTR_FLAG_DEFAULT 0
 
 #define BATTERY_INST_ID                 0
 #define LED_BUTTON_INST_ID              1
@@ -73,18 +83,28 @@ uint8_t bt_mac[6];
 uint8_t session_key[16];
 int cert_state = 0;
 
+/*
+void TFT_print_Int(uint16_t num)
+{
+  char buffer[8];
+  
+  sprintf(buffer," %d", num);
+  TFT_print(buffer, LASTX, LASTY);
+}
+*/
+
 // led indicator procedure
-enum LED_IND{
+enum STATUS_MSG{
     UNKNOWN,
     CONNECTED,
     DISCONNECTED,
     GAP,
 	ADV,CATCH
 };
-LED_IND blink_status = UNKNOWN;
-LED_IND online_status = DISCONNECTED;
+STATUS_MSG blink_status = UNKNOWN;
+STATUS_MSG online_status = DISCONNECTED;
 
-static void led_indicator(void *pvParameters) {
+static void status_message(void *pvParameters) {
 
 
     while(1) {
@@ -126,7 +146,7 @@ static void led_indicator(void *pvParameters) {
 				case ADV:
                     //blink_status = UNKNOWN;
 					tft_fg = TFT_ORANGE;
-					TFT_print("WAITING FOR POGO", 5, 23);
+					TFT_print("WAITING FOR CONNECTION", 5, 23);
                     break;
                 default:
                     break;
@@ -138,6 +158,46 @@ static void led_indicator(void *pvParameters) {
     }
 }
 
+static xQueueHandle gpio_evt_queue = NULL;
+
+static void IRAM_ATTR gpio_isr_handler(void* arg)
+{
+    uint32_t gpio_num = (uint32_t) arg;
+    xQueueSendFromISR(gpio_evt_queue, &gpio_num, NULL);
+}
+
+static void gpio_task_example(void* arg)
+{
+    uint32_t io_num;
+	char buffer[12];
+	//https://demo-dijiudu.readthedocs.io/en/latest/api-reference/peripherals/adc.html
+	adc1_config_width(ADC_WIDTH_BIT_12);
+	
+    for(;;) {
+        if(xQueueReceive(gpio_evt_queue, &io_num, portMAX_DELAY)) {
+            //printf("GPIO[%d] intr, val: %d\n", io_num, gpio_get_level(io_num));
+			tft_fg = TFT_WHITE;
+			if (io_num == 35 && gpio_get_level(GPIO_INPUT_IO_1) == 1){
+				printf("Button 2 Released\n");
+				
+				TFT_fillRect(0,120,240,15,TFT_BLACK);
+				TFT_print("V: ", 5, 120);
+				//
+				adc1_config_channel_atten(ADC1_CHANNEL_6,ADC_ATTEN_DB_11);
+				int val = adc1_get_raw(ADC1_CHANNEL_6);
+				// https://github.com/Xinyuan-LilyGO/TTGO-T-Display/issues/35
+				// https://demo-dijiudu.readthedocs.io/en/latest/api-reference/peripherals/adc.html#_CPPv211adc_atten_t
+				float battery_voltage = ((float)val / 4095.0) * 2.0 * 3.3 * (1100 / 1000.0);
+				printf("Voltage: %.2f\n",battery_voltage);
+				sprintf(buffer,"%.2f", battery_voltage);
+				TFT_print(buffer, 22, 120);
+				
+			} else if (io_num == 35 && gpio_get_level(GPIO_INPUT_IO_1) == 0){
+				printf("Button 2 Pressed\n");
+			}
+        }
+    }
+}
 
 typedef struct {
     uint16_t   handle;
@@ -1082,6 +1142,36 @@ void app_main_cc()
 {
     esp_err_t ret;
 
+    gpio_config_t io_conf;
+
+	//https://esp32.com/viewtopic.php?f=2&t=15795
+    //interrupt of rising edge. Enable interrupt on positive edge
+    io_conf.intr_type = (gpio_int_type_t)GPIO_PIN_INTR_POSEDGE; 
+    //bit mask of the pins, use GPIO4/5 here
+    io_conf.pin_bit_mask = GPIO_INPUT_PIN_SEL;
+    //set as input mode    
+    io_conf.mode = GPIO_MODE_INPUT;
+    //enable pull-up mode
+    io_conf.pull_up_en = (gpio_pullup_t)1;
+    gpio_config(&io_conf);
+
+    //change gpio intrrupt type for 0,35
+    gpio_set_intr_type(GPIO_INPUT_IO_0, GPIO_INTR_ANYEDGE);
+	gpio_set_intr_type(GPIO_INPUT_IO_1, GPIO_INTR_ANYEDGE);
+
+    //create a queue to handle gpio event from isr
+    gpio_evt_queue = xQueueCreate(10, sizeof(uint32_t));
+    //start gpio task
+    xTaskCreate(gpio_task_example, "gpio_task_example", 2048, NULL, 5, NULL);
+
+    //install gpio isr service
+    gpio_install_isr_service(ESP_INTR_FLAG_DEFAULT);
+    //hook isr handler for specific gpio pin
+    gpio_isr_handler_add(GPIO_INPUT_IO_0, gpio_isr_handler, (void*) GPIO_INPUT_IO_0);
+    gpio_isr_handler_add(GPIO_INPUT_IO_1, gpio_isr_handler, (void*) GPIO_INPUT_IO_1);
+	
+	
+
     /* Initialize NVS. */
     ret = nvs_flash_init();
     if (ret == ESP_ERR_NVS_NO_FREE_PAGES || ret == ESP_ERR_NVS_NEW_VERSION_FOUND) {
@@ -1094,7 +1184,7 @@ void app_main_cc()
     init_pgp();
 	
 	tft_fg = TFT_YELLOW;
-	TFT_print("PGPEMU Started", 5, 5);
+	TFT_print("PGPEMU-ESP32 with TFT v0.25", 5, 5);
 
     /* Configure parameters of an UART driver,
      * communication pins and install the driver */
@@ -1124,7 +1214,7 @@ void app_main_cc()
 
     xTaskCreate(auto_button_task, "auto_button_task", 2048, NULL, 12, NULL);
 	//led indicator
-    xTaskCreate(led_indicator, "led_indicator", 2048, NULL, 12, NULL);
+    xTaskCreate(status_message, "status_message", 2048, NULL, 12, NULL);
 
     ESP_ERROR_CHECK(esp_bt_controller_mem_release(ESP_BT_MODE_CLASSIC_BT));
 
