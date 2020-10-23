@@ -3,7 +3,6 @@
 #ifndef CONFIG_PGPEMU_CUSTOM
 #include "secrets.h"
 
-
 //you can uncomment this line if you just want to test out the algorithms
 #error You are still using fake keys please see https://github.com/Jesus805/Suota-Go-Plus
 
