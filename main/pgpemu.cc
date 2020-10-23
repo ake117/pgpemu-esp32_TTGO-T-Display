@@ -93,6 +93,25 @@ void TFT_print_Int(uint16_t num)
 }
 */
 
+void TFT_PrintVolt(){
+	char buffer[8];
+	int vy=115;
+	//https://demo-dijiudu.readthedocs.io/en/latest/api-reference/peripherals/adc.html
+	adc1_config_width(ADC_WIDTH_BIT_12);
+
+	tft_fg = TFT_WHITE;
+	//TFT_fillRect(0,y,tft_width,15,TFT_BLACK);
+	adc1_config_channel_atten(ADC1_CHANNEL_6,ADC_ATTEN_DB_11);
+	int val = adc1_get_raw(ADC1_CHANNEL_6);
+	// https://github.com/Xinyuan-LilyGO/TTGO-T-Display/issues/35
+	// https://demo-dijiudu.readthedocs.io/en/latest/api-reference/peripherals/adc.html#_CPPv211adc_atten_t
+	float battery_voltage = ((float)val / 4095.0) * 2.0 * 3.3 * (1100 / 1000.0);
+	printf("%.2fv",battery_voltage);
+	sprintf(buffer,"%.2fv", battery_voltage);
+	TFT_print(buffer, 5, vy);
+}
+
+
 // led indicator procedure
 enum STATUS_MSG{
     UNKNOWN,
@@ -105,55 +124,56 @@ STATUS_MSG blink_status = UNKNOWN;
 STATUS_MSG online_status = DISCONNECTED;
 
 static void status_message(void *pvParameters) {
-
+	int y = 5;
+	int height = 15;
 
     while(1) {
         if(blink_status == UNKNOWN) {
             switch (online_status) {
                 case CONNECTED:
+					TFT_PrintVolt();
 					tft_fg = TFT_GREEN;
-					TFT_print("CONNECTED", 5, 23);
+					TFT_print("CONNECTED", 5, y);
                     break;
                 case DISCONNECTED:
 					tft_fg = TFT_RED;
-					TFT_print("DISCONNECTED", 5, 23);
+					TFT_print("DISCONNECTED", 5, y);
                     break;
                 default:
 					tft_fg = TFT_GREEN;
-					TFT_print("STAND BY", 5, 23);
+					TFT_print("STAND BY", 5, y);
                     break;
             }
-			vTaskDelay(2500 / portTICK_RATE_MS);
-			TFT_fillRect(0,23,240,13,TFT_BLACK);
-        }
-        else {
+        } else {
             switch (blink_status) {
                 case GAP:
                     blink_status = UNKNOWN;
 					tft_fg = TFT_ORANGE;
-					TFT_print("CONNECTING", 5, 23);
+					TFT_print("CONNECTING.", 5, y);
 					vTaskDelay(250 / portTICK_RATE_MS);
-					TFT_print("CONNECTING...", 5, 23);
+					TFT_print("CONNECTING...", 5, y);
                     vTaskDelay(250 / portTICK_RATE_MS);
                     break;
 				case CATCH:
 					tft_fg = TFT_GREENYELLOW;
-					TFT_print("CATCHING", 5, 23);
+					TFT_print("CATCHING", 5, y);
 					vTaskDelay(250 / portTICK_RATE_MS);
-					TFT_print("CATCHING...", 5, 23);
+					TFT_print("CATCHING...", 5, y);
                     vTaskDelay(250 / portTICK_RATE_MS);
                     break;
 				case ADV:
                     //blink_status = UNKNOWN;
 					tft_fg = TFT_ORANGE;
-					TFT_print("WAITING FOR CONNECTION", 5, 23);
+					TFT_print("DISCONNECTED", 5, y);
+					vTaskDelay(250 / portTICK_RATE_MS);
                     break;
                 default:
                     break;
             }
-			vTaskDelay(1000 / portTICK_RATE_MS);
-			TFT_fillRect(0,23,240,13,TFT_BLACK);
         }
+		vTaskDelay(1000 / portTICK_RATE_MS);
+		//TFT_clearStringRect (5,y,buffer);
+		TFT_fillRect(0,y,tft_width,height,TFT_BLACK);
 
     }
 }
@@ -166,34 +186,29 @@ static void IRAM_ATTR gpio_isr_handler(void* arg)
     xQueueSendFromISR(gpio_evt_queue, &gpio_num, NULL);
 }
 
-static void gpio_task_example(void* arg)
+static void gpio35(void* arg)
 {
     uint32_t io_num;
-	char buffer[12];
-	//https://demo-dijiudu.readthedocs.io/en/latest/api-reference/peripherals/adc.html
-	adc1_config_width(ADC_WIDTH_BIT_12);
 	
     for(;;) {
         if(xQueueReceive(gpio_evt_queue, &io_num, portMAX_DELAY)) {
             //printf("GPIO[%d] intr, val: %d\n", io_num, gpio_get_level(io_num));
-			tft_fg = TFT_WHITE;
 			if (io_num == 35 && gpio_get_level(GPIO_INPUT_IO_1) == 1){
 				printf("Button 2 Released\n");
 				
-				TFT_fillRect(0,120,240,15,TFT_BLACK);
-				TFT_print("V: ", 5, 120);
-				//
-				adc1_config_channel_atten(ADC1_CHANNEL_6,ADC_ATTEN_DB_11);
-				int val = adc1_get_raw(ADC1_CHANNEL_6);
-				// https://github.com/Xinyuan-LilyGO/TTGO-T-Display/issues/35
-				// https://demo-dijiudu.readthedocs.io/en/latest/api-reference/peripherals/adc.html#_CPPv211adc_atten_t
-				float battery_voltage = ((float)val / 4095.0) * 2.0 * 3.3 * (1100 / 1000.0);
-				printf("Voltage: %.2f\n",battery_voltage);
-				sprintf(buffer,"%.2f", battery_voltage);
-				TFT_print(buffer, 22, 120);
-				
 			} else if (io_num == 35 && gpio_get_level(GPIO_INPUT_IO_1) == 0){
 				printf("Button 2 Pressed\n");
+				
+			} else if (io_num == 0 && gpio_get_level(GPIO_INPUT_IO_0) == 1){
+				printf("Button 1 Released\n");
+				/* //TFT_fillRect(0,y,tft_width,15,TFT_BLACK);
+				//PIN_BCKL_ON   0     // GPIO value for backlight ON
+				//PIN_BCKL_OFF  1     // GPIO value for backlight OFF
+				//PIN_NUM_BCKL	4 */
+				
+			} else if (io_num == 0 && gpio_get_level(GPIO_INPUT_IO_0) == 0){
+				printf("Button 1 Pressed\n");
+				
 			}
         }
     }
@@ -1141,13 +1156,13 @@ static void uart_event_task(void *pvParameters)
 void app_main_cc()
 {
     esp_err_t ret;
-
     gpio_config_t io_conf;
+	TFT_setFont(DEJAVU24_FONT, NULL);
 
 	//https://esp32.com/viewtopic.php?f=2&t=15795
     //interrupt of rising edge. Enable interrupt on positive edge
     io_conf.intr_type = (gpio_int_type_t)GPIO_PIN_INTR_POSEDGE; 
-    //bit mask of the pins, use GPIO4/5 here
+    //bit mask of the pins, use GPIO4,0,35 here
     io_conf.pin_bit_mask = GPIO_INPUT_PIN_SEL;
     //set as input mode    
     io_conf.mode = GPIO_MODE_INPUT;
@@ -1162,7 +1177,7 @@ void app_main_cc()
     //create a queue to handle gpio event from isr
     gpio_evt_queue = xQueueCreate(10, sizeof(uint32_t));
     //start gpio task
-    xTaskCreate(gpio_task_example, "gpio_task_example", 2048, NULL, 5, NULL);
+    xTaskCreate(gpio35, "Button Control", configMINIMAL_STACK_SIZE, NULL, 5, NULL);
 
     //install gpio isr service
     gpio_install_isr_service(ESP_INTR_FLAG_DEFAULT);
@@ -1184,7 +1199,7 @@ void app_main_cc()
     init_pgp();
 	
 	tft_fg = TFT_YELLOW;
-	TFT_print("PGPEMU-ESP32 with TFT v0.25", 5, 5);
+	//TFT_print("PGPEMU ESP32 v0.3", 5, 5);
 
     /* Configure parameters of an UART driver,
      * communication pins and install the driver */
@@ -1213,7 +1228,8 @@ void app_main_cc()
     xTaskCreate(uart_event_task, "uart_event_task", 2048, NULL, 12, NULL);
 
     xTaskCreate(auto_button_task, "auto_button_task", 2048, NULL, 12, NULL);
-	//led indicator
+
+	//Status message
     xTaskCreate(status_message, "status_message", 2048, NULL, 12, NULL);
 
     ESP_ERROR_CHECK(esp_bt_controller_mem_release(ESP_BT_MODE_CLASSIC_BT));

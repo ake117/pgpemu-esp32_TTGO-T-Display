@@ -52,7 +52,8 @@ void pgp_display_init(void)
   tft_disp_spi = spi;
   TFT_display_init();
   tft_gray_scale = 0;
-  TFT_setRotation(3);  
+  TFT_setRotation(3);
+  TFT_setFont(DEJAVU18_FONT, NULL);
   
 #ifdef TFT_START_COLORS_INVERTED
         TFT_invertDisplay(1);
@@ -62,8 +63,8 @@ void pgp_display_init(void)
     TFT_jpg_image(CENTER, CENTER, 0, NULL, PGPEMU_SPLASH, PGPEMU_SPLASH_LEN);
 	tft_fg = TFT_ORANGE;
 	//
-	TFT_print("Welcome to PGPEMU-ESP32", 8, 47);
-	vTaskDelay(2500 / portTICK_RATE_MS);
+	TFT_print("ESP32", 8, 47);
+	vTaskDelay(2000 / portTICK_RATE_MS);
 	TFT_fillWindow(TFT_BLACK);
 
 }
