@@ -144,6 +144,8 @@ static void status_message(void *pvParameters) {
 					TFT_print("STAND BY", 5, y);
                     break;
             }
+			vTaskDelay(5000 / portTICK_RATE_MS);
+			TFT_fillRect(0,y,tft_width,height+120,TFT_BLACK);
         } else {
             switch (blink_status) {
                 case GAP:
@@ -170,10 +172,10 @@ static void status_message(void *pvParameters) {
                 default:
                     break;
             }
+			vTaskDelay(500 / portTICK_RATE_MS);
+			//TFT_clearStringRect (5,y,buffer);
+			TFT_fillRect(0,y,tft_width,height,TFT_BLACK);
         }
-		vTaskDelay(1000 / portTICK_RATE_MS);
-		//TFT_clearStringRect (5,y,buffer);
-		TFT_fillRect(0,y,tft_width,height,TFT_BLACK);
 
     }
 }
