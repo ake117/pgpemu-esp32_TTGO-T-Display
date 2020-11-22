@@ -1,10 +1,7 @@
-#include "sdkconfig.h"
-
-#ifndef CONFIG_PGPEMU_CUSTOM
 #include "secrets.h"
 
 //you can uncomment this line if you just want to test out the algorithms
-#error You are still using fake keys please see https://github.com/Jesus805/Suota-Go-Plus
+#error You are still using fake keys, checkout http:/tinyhack.com
 
 uint8_t MAC[6] = {0x01, 0x02, 0x02, 0x03, 0x04, 0x05};
 
@@ -59,5 +56,3 @@ uint8_t DEVICE_KEY[16] = {
 	0x06, 0x07, 0x08, 0x09, 0x0a, 0x0b,
 	0x0c, 0x0d, 0x0e
 };
-
-#endif /* ! PGPEMU_CUSTOM */

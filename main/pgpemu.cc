@@ -131,7 +131,6 @@ static void status_message(void *pvParameters) {
         if(blink_status == UNKNOWN) {
             switch (online_status) {
                 case CONNECTED:
-					TFT_PrintVolt();
 					tft_fg = TFT_GREEN;
 					TFT_print("CONNECTED", 5, y);
                     break;
@@ -144,7 +143,7 @@ static void status_message(void *pvParameters) {
 					TFT_print("STAND BY", 5, y);
                     break;
             }
-			vTaskDelay(5000 / portTICK_RATE_MS);
+			vTaskDelay(3000 / portTICK_RATE_MS);
 			TFT_fillRect(0,y,tft_width,height+120,TFT_BLACK);
         } else {
             switch (blink_status) {
@@ -153,6 +152,8 @@ static void status_message(void *pvParameters) {
 					tft_fg = TFT_ORANGE;
 					TFT_print("CONNECTING.", 5, y);
 					vTaskDelay(250 / portTICK_RATE_MS);
+					TFT_print("CONNECTING..", 5, y);
+                    vTaskDelay(250 / portTICK_RATE_MS);
 					TFT_print("CONNECTING...", 5, y);
                     vTaskDelay(250 / portTICK_RATE_MS);
                     break;
@@ -160,19 +161,21 @@ static void status_message(void *pvParameters) {
 					tft_fg = TFT_GREENYELLOW;
 					TFT_print("CATCHING", 5, y);
 					vTaskDelay(250 / portTICK_RATE_MS);
+					TFT_print("CATCHING..", 5, y);
+                    vTaskDelay(250 / portTICK_RATE_MS);
 					TFT_print("CATCHING...", 5, y);
                     vTaskDelay(250 / portTICK_RATE_MS);
                     break;
 				case ADV:
                     //blink_status = UNKNOWN;
+					TFT_PrintVolt();
 					tft_fg = TFT_ORANGE;
 					TFT_print("DISCONNECTED", 5, y);
-					vTaskDelay(250 / portTICK_RATE_MS);
+					vTaskDelay(5000 / portTICK_RATE_MS);
                     break;
                 default:
                     break;
             }
-			vTaskDelay(500 / portTICK_RATE_MS);
 			//TFT_clearStringRect (5,y,buffer);
 			TFT_fillRect(0,y,tft_width,height,TFT_BLACK);
         }

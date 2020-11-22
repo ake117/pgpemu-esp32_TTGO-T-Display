@@ -56,15 +56,15 @@ void pgp_display_init(void)
   TFT_setFont(DEJAVU18_FONT, NULL);
   
 #ifdef TFT_START_COLORS_INVERTED
-        TFT_invertDisplay(1);
+    TFT_invertDisplay(1);
 #endif
 
-	//Display splash screen
+	// Display splash screen
     TFT_jpg_image(CENTER, CENTER, 0, NULL, PGPEMU_SPLASH, PGPEMU_SPLASH_LEN);
 	tft_fg = TFT_ORANGE;
 	//
-	TFT_print("ESP32", 8, 47);
-	vTaskDelay(2000 / portTICK_RATE_MS);
+	// TFT_print("ESP32", 8, 47);
+	vTaskDelay(2500 / portTICK_RATE_MS);
 	TFT_fillWindow(TFT_BLACK);
 
 }
